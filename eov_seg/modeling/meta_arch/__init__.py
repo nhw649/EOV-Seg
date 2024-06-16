@@ -1,0 +1,1 @@
+from .segmentator import EOV_SEG
