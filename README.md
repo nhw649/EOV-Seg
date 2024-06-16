@@ -1,11 +1,11 @@
 # EOV-Seg: Efficient Open-Vocabulary Panoptic Segmentation
 ## 📋 Table of content
-  1. [🛠️ Install](#1)
-  2. [✏️ Usage](#2)
-    1. [Prepare Datasets](https://github.com/bytedance/fc-clip/blob/main/datasets/README.md)
-    2. [Training](#2)
-    3. [Inference](#2)
-  3. [❤️ Acknowledgement](#3)
+    1. [🛠️ Install](#1)
+    2. [✏️ Usage](#2)
+           1. [Prepare Datasets](https://github.com/bytedance/fc-clip/blob/main/datasets/README.md)
+           2. [Training](#2)
+           3. [Inference](#2)
+    3. [❤️ Acknowledgement](#3)
 
 
 ## 🛠️ Install <a name="1"></a> 
