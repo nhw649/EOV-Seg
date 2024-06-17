@@ -152,34 +152,6 @@ class Trainer(DefaultTrainer):
 
     @classmethod
     def build_optimizer(cls, cfg, model):
-        total_params = sum(p.numel() for n, p in model.named_parameters() if 'vit_backbone' not in n)
-        trainable_params = sum(p.numel() for n, p in model.named_parameters() if 'vit_backbone' not in n and p.requires_grad)
-        frozen_params = sum(p.numel() for n, p in model.named_parameters() if 'vit_backbone' not in n and not p.requires_grad)
-        frozen_params_exclude_text = 0
-        for n, p in model.named_parameters():
-            if 'vit_backbone' not in n:
-                # print(n, p.requires_grad)
-                if p.requires_grad:
-                    continue
-                # ignore text tower
-                if 'clip_model.token_embedding' in n or 'clip_model.positional_embedding' in n or 'clip_model.transformer' in n or 'clip_model.ln_final' in n or 'clip_model.text_projection' in n:
-                    continue
-                frozen_params_exclude_text += p.numel()
-            print(n)
-        vit_frozen_params = sum(p.numel() for n, p in model.named_parameters() 
-        if ('vit_backbone.clip_model.transformer.resblocks.0' in n or
-        # 'vit_backbone.clip_model.transformer.resblocks.1' in n or 
-        # 'vit_backbone.clip_model.transformer.resblocks.2' in n or 
-        # 'vit_backbone.clip_model.transformer.resblocks.3' in n or 
-        # 'vit_backbone.clip_model.transformer.resblocks.4' in n or 
-        # 'vit_backbone.clip_model.transformer.resblocks.5' in n or  
-        "vit_backbone.clip_model.visual.positional_embedding" in n or
-        "vit_backbone.clip_model.visual.class_embedding" in n or 
-        "vit_backbone.clip_model.visual.conv1" in n) and not p.requires_grad)
-        
-        print(f"vit_frozen_params: {vit_frozen_params}")
-        print(f"total_params: {total_params + vit_frozen_params}, trainable_params: {trainable_params}, frozen_params: {frozen_params + vit_frozen_params}, frozen_params_exclude_text: {frozen_params_exclude_text + vit_frozen_params}")
-
         weight_decay_norm = cfg.SOLVER.WEIGHT_DECAY_NORM
         weight_decay_embed = cfg.SOLVER.WEIGHT_DECAY_EMBED
 
@@ -316,22 +288,6 @@ def main(args):
 
     if args.eval_only:
         model = Trainer.build_model(cfg)
-
-        # total_params = sum(p.numel() for p in model.parameters())
-        # trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-        # frozen_params = sum(p.numel() for p in model.parameters() if not p.requires_grad)
-        # frozen_params_exclude_text = 0
-        # for n, p in model.named_parameters():
-        #     print(n, p.requires_grad)
-        #     if p.requires_grad:
-        #         continue
-        #     # ignore text tower
-        #     if 'clip_model.token_embedding' in n or 'clip_model.positional_embedding' in n or 'clip_model.transformer' in n or 'clip_model.ln_final' in n or 'clip_model.text_projection' in n:
-        #         continue
-        #     frozen_params_exclude_text += p.numel()    
-        # print(f"total_params: {total_params}, trainable_params: {trainable_params}, frozen_params: {frozen_params}, frozen_params_exclude_text: {frozen_params_exclude_text}")
-    
-        total_params = sum(p.numel() for n, p in model.named_parameters() if 'vit_backbone' not in n)
         trainable_params = sum(p.numel() for n, p in model.named_parameters() if 'vit_backbone' not in n and p.requires_grad)
         frozen_params = sum(p.numel() for n, p in model.named_parameters() if 'vit_backbone' not in n and not p.requires_grad)
         frozen_params_exclude_text = 0
@@ -340,13 +296,18 @@ def main(args):
                 # print(n, p.requires_grad)
                 if p.requires_grad:
                     continue
-                # ignore text tower
+                # ignore text
                 if 'clip_model.token_embedding' in n or 'clip_model.positional_embedding' in n or 'clip_model.transformer' in n or 'clip_model.ln_final' in n or 'clip_model.text_projection' in n:
                     continue
                 frozen_params_exclude_text += p.numel()
-        vit_frozen_params = sum(p.numel() for n, p in model.named_parameters() if 'vit_backbone.clip_model.transformer.resblocks.0' in n and not p.requires_grad)
+        vit_frozen_params = sum(p.numel() for n, p in model.named_parameters() 
+        if ('vit_backbone.clip_model.transformer.resblocks.0' in n or
+        "vit_backbone.clip_model.visual.positional_embedding" in n or
+        "vit_backbone.clip_model.visual.class_embedding" in n or 
+        "vit_backbone.clip_model.visual.conv1" in n) and not p.requires_grad)
+
         print(f"vit_frozen_params: {vit_frozen_params}")
-        print(f"total_params: {total_params + vit_frozen_params}, trainable_params: {trainable_params}, frozen_params: {frozen_params + vit_frozen_params}, frozen_params_exclude_text: {frozen_params_exclude_text + vit_frozen_params}")
+        print(f"total_params: {(frozen_params_exclude_text + vit_frozen_params + trainable_params)}, trainable_params: {trainable_params}, frozen_params: {(frozen_params + vit_frozen_params)}, frozen_params_exclude_text: {(frozen_params_exclude_text + vit_frozen_params)}")
 
         DetectionCheckpointer(model, save_dir=cfg.OUTPUT_DIR).resume_or_load(
             cfg.MODEL.WEIGHTS, resume=args.resume
