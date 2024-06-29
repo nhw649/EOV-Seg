@@ -1,6 +1,6 @@
 _BASE_: R50.yaml
 DATASETS:
-  TRAIN: ("openvocab_coco_2017_train_panoptic_with_sem_seg",)  # stuff: openvocab_coco_2017_train_stuff_sem_seg
+  TRAIN: ("openvocab_coco_2017_train_panoptic_with_sem_seg",)
   TEST: ("openvocab_ade20k_panoptic_val",)
 MODEL:
   BACKBONE:
