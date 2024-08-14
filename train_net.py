@@ -244,9 +244,9 @@ class Trainer(DefaultTrainer):
         head_total_params = 0
         for n, p in model.named_parameters():
             # print(n, p.requires_grad)
-            if "neck" in n:
+            if "lite_aggr" in n:
                 neck_total_params += p.numel()
-            if "head" in n:
+            if "light_weight_decoder" in n:
                 head_total_params += p.numel()
         print(f"neck_total_params: {neck_total_params}, head_total_params: {head_total_params}")
         return optimizer

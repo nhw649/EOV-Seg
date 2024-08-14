@@ -170,11 +170,10 @@ class DyDepthwiseConvAtten(nn.Module):
         self.weight_linear = nn.Linear(self.hidden_dim, self.kernel_size)
         self.norm = nn.LayerNorm(self.hidden_dim)
 
-
     def forward(self, query, value):
         assert query.shape == value.shape
         B, N, C = query.shape
-        
+
         # dynamic depth-wise conv
         # dy_depth_conv_weight = self.depth_weight_linear(query).view(B, self.num_proposals, 1,self.kernel_size) # B, N, 1, K
         # dy_point_conv_weight = self.point_weigth_linear(query).view(B, self.num_proposals, self.num_proposals, 1)
@@ -244,13 +243,16 @@ class TDEE(nn.Module):
         input_in = input_feats[..., :self.num_params_in]
         input_out = input_feats[..., -self.num_params_out:]
 
+        # P_t
         router_feats = input_in * param_in
 
-        input_router = self.input_norm_in(self.input_router(router_feats))
         update_router = self.norm_in(self.update_router(router_feats))
+        input_router = self.input_norm_in(self.input_router(router_feats))
+
         if self.router_sigmoid:
-            input_router = input_router.sigmoid()
-            update_router = update_router.sigmoid()
+            update_router = update_router.sigmoid() # α_s
+            input_router = input_router.sigmoid()  # α_m
+
         param_out = self.norm_out(param_out)
         input_out = self.input_norm_out(input_out)
 
@@ -258,6 +260,7 @@ class TDEE(nn.Module):
             param_out = self.activation(param_out)
             input_out = self.activation(input_out)
 
+        # ^E_I
         features = update_router * param_out + input_router * input_out
 
         features = self.fc_layer(features)
@@ -279,8 +282,9 @@ class CrossAttenHead(nn.Module):
         self.num_proposals = cfg.MODEL.EOV_SEG.NUM_PROPOSALS
         self.hard_mask_thr = 0.5
 
-        self.tdee = TDEE(in_channels=cfg.MODEL.EOV_SEG.HIDDEN_DIM, 
-                                                feat_channels=cfg.MODEL.EOV_SEG.HIDDEN_DIM, 
+        # Two-way Dynamic Embedding Experts(In the purple section of Fig. 4)
+        self.tdee = TDEE(in_channels=cfg.MODEL.EOV_SEG.HIDDEN_DIM,
+                                                feat_channels=cfg.MODEL.EOV_SEG.HIDDEN_DIM,
                                                 out_channels=cfg.MODEL.EOV_SEG.HIDDEN_DIM,)
 
         self.f_atten = DyDepthwiseConvAtten(cfg)
@@ -290,13 +294,13 @@ class CrossAttenHead(nn.Module):
         self.k_atten = DyDepthwiseConvAtten(cfg)
         self.k_dropout = nn.Dropout(0.0)
         self.k_atten_norm = nn.LayerNorm(self.hidden_dim * self.conv_kernel_size_2d**2) 
-        
+
         self.s_atten = nn.MultiheadAttention(embed_dim=self.hidden_dim * self.conv_kernel_size_2d**2,
                                              num_heads=8,
                                              dropout=0.0)
         self.s_dropout = nn.Dropout(0.0)
         self.s_atten_norm = nn.LayerNorm(self.hidden_dim * self.conv_kernel_size_2d**2)
-        
+
         self.ffn = FFN(self.hidden_dim, feedforward_channels=2048)
         self.ffn_norm = nn.LayerNorm(self.hidden_dim)
 
@@ -390,9 +394,9 @@ class CrossAttenHead(nn.Module):
         return cls_score, new_mask_preds, obj_feat
 
 
-class LiteHead(nn.Module):
+class LightweightDecoder(nn.Module):
     def __init__(self, cfg, vit_backbone_shape, num_stages, criterion):
-        super(LiteHead, self).__init__()
+        super(LightweightDecoder, self).__init__()
         transformer_dim = vit_backbone_shape["layer"].channels
         self.num_stages = num_stages
         self.criterion = criterion
@@ -404,6 +408,8 @@ class LiteHead(nn.Module):
             nn.ConvTranspose2d(transformer_dim, transformer_dim, kernel_size=2, stride=2),
             nn.GELU(),
         )
+
+        # Vocabulary-Aware Selection(In the yellow section of Fig. 4)
         self.vas = VAS(in_channels=cfg.MODEL.EOV_SEG.HIDDEN_DIM, out_channels=cfg.MODEL.EOV_SEG.HIDDEN_DIM, guide_channels=cfg.MODEL.OV_HEAD.EMBED_DIM, embed_channels=cfg.MODEL.OV_HEAD.EMBED_DIM)
         
         self.mask_heads = nn.ModuleList()
@@ -420,6 +426,8 @@ class LiteHead(nn.Module):
         all_cls_scores = []
         all_masks_preds = []
         all_stage_loss = {}
+
+        # Lightweight Decoder - Layer(In the pink section of Fig. 4)
         for stage in range(self.num_stages):
             mask_head = self.mask_heads[stage]
             cls_scores, mask_preds, object_kernels = mask_head(vit_feats, features, object_kernels, mask_preds, text_classifier=text_classifier, num_templates=num_templates)

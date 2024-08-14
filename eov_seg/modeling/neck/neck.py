@@ -146,7 +146,7 @@ class LiteDeformConv(nn.Module):
         return x
 
 
-class LiteNeck(nn.Module):
+class LiteAggregator(nn.Module):
     def __init__(self, cfg, backbone_shape):
         super().__init__()
 

@@ -8,15 +8,9 @@ from detectron2.utils.memory import retry_if_cuda_oom
 from detectron2.modeling.postprocessing import sem_seg_postprocess
 
 from eov_seg.modeling import build_backbone
-from eov_seg.modeling.neck import LiteNeck
-from eov_seg.modeling.head import LiteHead, MaskPooling, get_classification_logits
+from eov_seg.modeling.neck import LiteAggregator
+from eov_seg.modeling.head import LightweightDecoder, MaskPooling, get_classification_logits
 from eov_seg.modeling.loss import SetCriterion, HungarianMatcher
-
-#  for visualization
-import matplotlib.pyplot as plt
-import cv2
-
-import time
 
 __all__ = ["EOV_SEG"]
 
@@ -91,8 +85,8 @@ class EOV_SEG(nn.Module):
             importance_sample_ratio=cfg.MODEL.EOV_SEG.IMPORTANCE_SAMPLE_RATIO,
         )
         
-        self.lite_neck = LiteNeck(cfg=cfg, backbone_shape=self.cnn_backbone.output_shape()) # 
-        self.lite_head = LiteHead(cfg=cfg, vit_backbone_shape=self.vit_backbone.output_shape(), num_stages=cfg.MODEL.EOV_SEG.NUM_STAGES, criterion=criterion) # 
+        self.lite_aggr = LiteAggregator(cfg=cfg, backbone_shape=self.cnn_backbone.output_shape()) # 
+        self.light_weight_decoder = LightweightDecoder(cfg=cfg, vit_backbone_shape=self.vit_backbone.output_shape(), num_stages=cfg.MODEL.EOV_SEG.NUM_STAGES, criterion=criterion) # 
 
         self.register_buffer("pixel_mean", torch.Tensor(cfg.MODEL.PIXEL_MEAN).view(-1, 1, 1), False)
         self.register_buffer("pixel_std", torch.Tensor(cfg.MODEL.PIXEL_STD).view(-1, 1, 1), False)
@@ -200,7 +194,7 @@ class EOV_SEG(nn.Module):
         features = list()
         for f in self.in_features:
             features.append(cnn_feats[f])
-        neck_feats = self.lite_neck(features)
+        neck_feats = self.lite_aggr(features)
 
         text_classifier, num_templates = self.get_text_classifier()
 
@@ -217,10 +211,10 @@ class EOV_SEG(nn.Module):
 
             # # bipartite matching-based loss
             # losses = self.criterion(outputs, targets)
-            losses, all_cls_scores, all_mask_preds = self.lite_head(vit_feats, neck_feats, targets, text_classifier, num_templates)
+            losses, all_cls_scores, all_mask_preds = self.light_weight_decoder(vit_feats, neck_feats, targets, text_classifier, num_templates)
             return losses
         else:
-            losses, all_cls_scores, all_mask_preds = self.lite_head(vit_feats, neck_feats, None, text_classifier, num_templates)
+            losses, all_cls_scores, all_mask_preds = self.light_weight_decoder(vit_feats, neck_feats, None, text_classifier, num_templates)
             mask_cls_results = all_cls_scores[-1] #outputs["pred_logits"]
             mask_pred_results = all_mask_preds[-1] #outputs["pred_masks"]
 
@@ -267,7 +261,8 @@ class EOV_SEG(nn.Module):
                 * (1 - category_overlapping_mask)
             )
             cls_results = cls_logits_seen + cls_logits_unseen
-            # arithmetic
+
+            # arithmetic(ablation)
             # cls_logits_seen = (
             #     (in_vocab_cls_results * (1 - alpha) + out_vocab_cls_probs * alpha).log()
             #     * category_overlapping_mask

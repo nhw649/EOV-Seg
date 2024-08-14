@@ -1,1 +1,1 @@
-from .head import LiteHead, MaskPooling, get_classification_logits
+from .head import LightweightDecoder, MaskPooling, get_classification_logits

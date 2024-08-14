@@ -1,1 +1,1 @@
-from .neck import LiteNeck, DeformLayer
+from .neck import LiteAggregator, DeformLayer

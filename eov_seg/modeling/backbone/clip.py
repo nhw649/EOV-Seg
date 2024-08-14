@@ -234,6 +234,7 @@ class CLIP(Backbone):
 
         x = self.clip_model.visual.ln_pre(x)
 
+        # ablation for tab.3
         x = x.permute(1, 0, 2)  # [B, N, C] -> [N, B, C]
         # x = self.clip_model.visual.transformer(x)[1:]
         # x = self.clip_model.visual.transformer.resblocks[0](x)[1:]
