@@ -1,7 +1,7 @@
 _BASE_: R50.yaml
 DATASETS:
   TRAIN: ("openvocab_coco_2017_train_panoptic_with_sem_seg",)
-  TEST: ("openvocab_ade20k_panoptic_val",) # openvocab_ade20k_panoptic_val, openvocab_cityscapes_fine_panoptic_val, openvocab_coco_2017_val_panoptic_with_sem_seg, openvocab_pascal_ctx59_sem_seg_val, openvocab_pascal_ctx459_sem_seg_val, openvocab_pascal20_sem_seg_val, openvocab_ade20k_full_sem_seg_val
+  TEST: ("openvocab_ade20k_panoptic_val",) # openvocab_ade20k_panoptic_val, openvocab_ade20k_full_sem_seg_val, openvocab_pascal_ctx59_sem_seg_val, openvocab_pascal_ctx459_sem_seg_val, openvocab_pascal20_sem_seg_val, openvocab_cityscapes_fine_panoptic_val, openvocab_coco_2017_val_panoptic_with_sem_seg,
 MODEL:
   BACKBONE:
     NAME: "CLIP"
@@ -11,7 +11,7 @@ MODEL:
     NUM_STAGES: 3
     AGG_DIM: 96
     TEST:
-      SEMANTIC_ON: True
+      SEMANTIC_ON: False
       INSTANCE_ON: False
       PANOPTIC_ON: True
       OBJECT_MASK_THRESHOLD: 0.0

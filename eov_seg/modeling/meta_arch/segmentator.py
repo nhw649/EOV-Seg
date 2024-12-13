@@ -200,7 +200,6 @@ class EOV_SEG(nn.Module):
 
         # Append void class weight
         text_classifier = torch.cat([text_classifier, F.normalize(self.void_embedding.weight, dim=-1)], dim=0)
-
         if self.training:
             # mask classification target
             if "instances" in batched_inputs[0]:

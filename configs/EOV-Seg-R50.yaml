@@ -11,7 +11,7 @@ MODEL:
     NUM_STAGES: 3
     AGG_DIM: 128
     TEST:
-      SEMANTIC_ON: True
+      SEMANTIC_ON: False
       INSTANCE_ON: False
       PANOPTIC_ON: True
       OBJECT_MASK_THRESHOLD: 0.0

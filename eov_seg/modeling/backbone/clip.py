@@ -279,7 +279,7 @@ class CLIP(Backbone):
         masks = masks.reshape(batch, num_masks, height * width)
         masks = (masks > 0).to(masks.dtype)
         query = x.mean(0, keepdim=True) + positional_embedding[:1, None, :]
-        # num_masks = num_masks.to(query.device)
+        num_masks = num_masks.to(query.device)
         query = query.repeat_interleave(num_masks, dim=0)
 
         attn_mask = masks < 0.5

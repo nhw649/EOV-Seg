@@ -305,7 +305,10 @@ def main(args):
         "vit_backbone.clip_model.visual.positional_embedding" in n or
         "vit_backbone.clip_model.visual.class_embedding" in n or 
         "vit_backbone.clip_model.visual.conv1" in n) and not p.requires_grad)
+        
+        cnn_frozen_params = sum(p.numel() for n,p in model.named_parameters() if "cnn_backbone.clip_model.visual" in n)
 
+        print(f"cnn_frozen_params: {cnn_frozen_params}")
         print(f"vit_frozen_params: {vit_frozen_params}")
         print(f"total_params: {(frozen_params_exclude_text + vit_frozen_params + trainable_params)}, trainable_params: {trainable_params}, frozen_params: {(frozen_params + vit_frozen_params)}, frozen_params_exclude_text: {(frozen_params_exclude_text + vit_frozen_params)}")
 
