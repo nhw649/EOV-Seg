@@ -11,7 +11,7 @@
 <sup>1</sup> Xiamen University, <sup>2</sup> National University of Singapore
 
 
-[[`Paper`](https://arxiv.org/abs/2412.08628)] [[`Demo`]()] [[`BibTeX`](https://scholar.googleusercontent.com/scholar.bib?q=info:lpN3k5U4a0sJ:scholar.google.com/&output=citation&scisdr=CkWUaWwgAQn_zVGGgOr-hGXkCabXFw0dZ8A:AFWwaeYAAAAAZ12w8Igct-iHGTw4gbobf8DQJFg&scisig=AFWwaeYAAAAAZ12w8PKVznwqnEuFM5oTniLa0pI&scisf=4&ct=citation&cd=-1&hl=zh-CN)]
+[[`Paper`](https://arxiv.org/abs/2412.08628)] [[`Demo`]()] [[`BibTeX`](#citation)]
 </div>
 
 
@@ -238,14 +238,11 @@ python train_net.py --config-file configs/EOV-Seg-R50.yaml --eval-only MODEL.WEI
 
 ## :books: Citation <a name="citation"></a>
 ```bibtex
-@misc{niu2025eovseg,
-      title={EOV-Seg: Efficient Open-Vocabulary Panoptic Segmentation}, 
-      author={Hongwei Niu and Jie Hu and Jianghang Lin and Shengchuan Zhang},
-      year={2024},
-      eprint={2412.08628},
-      archivePrefix={arXiv},
-      primaryClass={cs.CV},
-      url={https://arxiv.org/abs/2412.08628}, 
+@article{niu2024eov,
+  title={EOV-Seg: Efficient Open-Vocabulary Panoptic Segmentation},
+  author={Niu, Hongwei and Hu, Jie and Lin, Jianghang and Zhang, Shengchuan},
+  journal={arXiv preprint arXiv:2412.08628},
+  year={2024}
 }
 ```
 
