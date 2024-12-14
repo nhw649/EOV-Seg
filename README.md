@@ -24,16 +24,17 @@ Open-vocabulary panoptic segmentation aims to segment and classify everything in
 </p>
 
 ## :clipboard: Table of content
-1. [:hammer_and_wrench: Installation](#1)
-2. [:bulb: Usage](#2)
-    1. [Prepare Datasets](#prep)
-    2. [Training](#train)
+1. [:hammer_and_wrench: Installation](#installation)
+2. [:dart: Model Zoo](#model_zoo)
+3. [:bulb: Usage](#usage)
+    1. [Prepare Datasets](#prepare)
+    2. [Training](#training)
     3. [Inference](#inference)
-3. [:books: Citation](#3)
-4. [:scroll: License](#4)
-5. [:sparkling_heart: Acknowledgement](#5)
+4. [:books: Citation](#citation)
+5. [:scroll: License](#license)
+6. [:sparkling_heart: Acknowledgement](#acknowledgement)
 
-## :hammer_and_wrench: Installation <a name="1"></a>
+## :hammer_and_wrench: Installation <a name="installation"></a>
 ```bash
 conda create --name eov-seg python=3.8 -y
 conda activate eov-seg
@@ -50,7 +51,7 @@ cd EOV-Seg
 pip install -r requirements.txt
 ```
 
-## :bulb: Model Zoo <a name="2"></a>
+## :dart: Model Zoo <a name="model_zoo"></a>
 <table>
 <caption>Open-vocabulary panoptic segmentation</caption>
 <tbody>
@@ -171,33 +172,49 @@ pip install -r requirements.txt
 </tbody>
 </table>
 
-## :bulb: Usage <a name="2"></a> 
-1. Please follow [this](datasets/README.md) to prepare datasets for training. The data should be organized like: <a name="prep"></a>
+## :bulb: Usage <a name="usage"></a> 
+1. Please follow [this](datasets/README.md) to prepare datasets for training. The data should be organized like: <a name="prepare"></a>
 ```
 datasets/
-  ade/
-      ADEChallengeData2016/
-        images/
-        annotations_detectron2/
-      ADE20K_2021_17_01/
-        images/
-        annotations_detectron2/
-  coco/
-        train2017/
-        val2017/
+    coco/
+        annotations/
+        {train, val}2017/
+        panoptic_{train, val}2017/
+        panoptic_semseg_{train, val}2017/
         stuffthingmaps_detectron2/
-  VOCdevkit/
-     VOC2012/
-        images_detectron2/
-        annotations_ovs/      
-    VOC2010/
+    ADEChallengeData2016/
         images/
-        annotations_detectron2_ovs/
-            pc59_val/
-            pc459_val/
+        annotations/
+        annotations_instance/
+        annotations_detectron2/
+        ade20k_panoptic_{train, val}/
+        ade20k_panoptic_{train,val}.json
+        ade20k_instance_{train,val}.json
+    ADE20K_2021_17_01/
+        images/
+        images_detectron2/
+        annotations_detectron2/
+    VOCdevkit/
+        VOC2012/
+            Annotations/
+            JPEGImages/
+            ImageSets/
+                Segmentation/  
+        VOC2010/
+            JPEGImages/
+            trainval/
+            trainval_merged.json
+    pascal_voc_d2/
+        images/
+        annotations_pascal21/
+        annotations_pascal20/
+    pascal_ctx_d2/
+        images/
+        annotations_ctx59/
+        annotations_ctx459/
 ```
 
-2. To train a model, use <a name="train"></a>
+2. To train a model, use <a name="training"></a>
 
 ```bash
 # For ConvNeXt-Large variant
@@ -219,7 +236,7 @@ python train_net.py --config-file configs/EOV-Seg-R50x4.yaml --eval-only MODEL.W
 python train_net.py --config-file configs/EOV-Seg-R50.yaml --eval-only MODEL.WEIGHTS /path/to/checkpoint_file
 ```
 
-## :books: Citation <a name="3"></a>
+## :books: Citation <a name="citation"></a>
 ```bibtex
 @misc{niu2025eovseg,
       title={EOV-Seg: Efficient Open-Vocabulary Panoptic Segmentation}, 
@@ -232,10 +249,10 @@ python train_net.py --config-file configs/EOV-Seg-R50.yaml --eval-only MODEL.WEI
 }
 ```
 
-## :scroll: License <a name="4"></a>
+## :scroll: License <a name="license"></a>
 EOV-Seg is released under the [Apache 2.0 license](LICENSE). Please refer to [LICENSE](LICENSE) for the careful check, if you are using our code for commercial matters.
 
-## :sparkling_heart: Acknowledgement <a name="5"></a> 
+## :sparkling_heart: Acknowledgement <a name="acknowledgement"></a> 
 -   [YOSO](https://github.com/hujiecpp/YOSO)
 -   [FC-CLIP](https://github.com/bytedance/fc-clip)
 -   [detectron2](https://github.com/facebookresearch/detectron2)

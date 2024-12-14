@@ -1,7 +1,6 @@
 # output dir
 output
 
-*.png
 *.json
 *.diff
 *.jpg
