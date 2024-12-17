@@ -1,5 +1,10 @@
-# Copyright (c) Facebook, Inc. and its affiliates.
-# Copied from: https://github.com/facebookresearch/detectron2/blob/master/demo/predictor.py
+"""
+This file may have been modified by Bytedance Ltd. and/or its affiliates (“Bytedance's Modifications”).
+All Bytedance's Modifications are Copyright (year) Bytedance Ltd. and/or its affiliates. 
+
+Reference: https://github.com/facebookresearch/Mask2Former/blob/main/demo/predictor.py
+"""
+
 import atexit
 import bisect
 import multiprocessing as mp
@@ -7,11 +12,86 @@ from collections import deque
 
 import cv2
 import torch
+import itertools
 
-from detectron2.data import MetadataCatalog
-from detectron2.engine.defaults import DefaultPredictor
+
+from detectron2.data import DatasetCatalog, MetadataCatalog
+from detectron2.engine.defaults import DefaultPredictor as d2_defaultPredictor
 from detectron2.utils.video_visualizer import VideoVisualizer
-from detectron2.utils.visualizer import ColorMode, Visualizer
+from detectron2.utils.visualizer import ColorMode, Visualizer, random_color
+import detectron2.utils.visualizer as d2_visualizer
+
+
+class DefaultPredictor(d2_defaultPredictor):
+
+    def set_metadata(self, metadata):
+        self.model.set_metadata(metadata)
+
+
+class OpenVocabVisualizer(Visualizer):
+    def draw_panoptic_seg(self, panoptic_seg, segments_info, area_threshold=None, alpha=0.7):
+        """
+        Draw panoptic prediction annotations or results.
+
+        Args:
+            panoptic_seg (Tensor): of shape (height, width) where the values are ids for each
+                segment.
+            segments_info (list[dict] or None): Describe each segment in `panoptic_seg`.
+                If it is a ``list[dict]``, each dict contains keys "id", "category_id".
+                If None, category id of each pixel is computed by
+                ``pixel // metadata.label_divisor``.
+            area_threshold (int): stuff segments with less than `area_threshold` are not drawn.
+
+        Returns:
+            output (VisImage): image object with visualizations.
+        """
+        pred = d2_visualizer._PanopticPrediction(panoptic_seg, segments_info, self.metadata)
+
+        if self._instance_mode == ColorMode.IMAGE_BW:
+            self.output.reset_image(self._create_grayscale_image(pred.non_empty_mask()))
+        # draw mask for all semantic segments first i.e. "stuff"
+        for mask, sinfo in pred.semantic_masks():
+            category_idx = sinfo["category_id"]
+            try:
+                mask_color = [x / 255 for x in self.metadata.stuff_colors[category_idx]]
+            except AttributeError:
+                mask_color = None
+
+            text = self.metadata.stuff_classes[category_idx].split(',')[0]
+            self.draw_binary_mask(
+                mask,
+                color=mask_color,
+                edge_color=d2_visualizer._OFF_WHITE,
+                text=text,
+                alpha=alpha,
+                area_threshold=area_threshold,
+            )
+        # draw mask for all instances second
+        all_instances = list(pred.instance_masks())
+        if len(all_instances) == 0:
+            return self.output
+        masks, sinfo = list(zip(*all_instances))
+        category_ids = [x["category_id"] for x in sinfo]
+
+        try:
+            scores = [x["score"] for x in sinfo]
+        except KeyError:
+            scores = None
+        stuff_classes = self.metadata.stuff_classes
+        stuff_classes = [x.split(',')[0] for x in stuff_classes]
+        labels = d2_visualizer._create_text_labels(
+            category_ids, scores, stuff_classes, [x.get("iscrowd", 0) for x in sinfo]
+        )
+
+        try:
+            colors = [
+                self._jitter([x / 255 for x in self.metadata.stuff_colors[c]]) for c in category_ids
+            ]
+        except AttributeError:
+            colors = None
+        self.overlay_instances(masks=masks, labels=labels, assigned_colors=colors, alpha=alpha)
+
+        return self.output
 
 
 class VisualizationDemo(object):
@@ -23,9 +103,42 @@ class VisualizationDemo(object):
             parallel (bool): whether to run the model in different processes from visualization.
                 Useful since the visualization logic can be slow.
         """
-        self.metadata = MetadataCatalog.get(
-            cfg.DATASETS.TEST[0] if len(cfg.DATASETS.TEST) else "__unused"
+
+        coco_metadata = MetadataCatalog.get("openvocab_coco_2017_val_panoptic_with_sem_seg")
+        ade20k_metadata = MetadataCatalog.get("openvocab_ade20k_panoptic_val")
+        lvis_classes = open("./eov_seg/data/datasets/lvis_1203_with_prompt_eng.txt", 'r').read().splitlines()
+        lvis_classes = [x[x.find(':')+1:] for x in lvis_classes]
+        lvis_colors = list(
+            itertools.islice(itertools.cycle(coco_metadata.stuff_colors), len(lvis_classes))
         )
+        # rerrange to thing_classes, stuff_classes
+        coco_thing_classes = coco_metadata.thing_classes
+        coco_stuff_classes = [x for x in coco_metadata.stuff_classes if x not in coco_thing_classes]
+        coco_thing_colors = coco_metadata.thing_colors
+        coco_stuff_colors = [x for x in coco_metadata.stuff_colors if x not in coco_thing_colors]
+        ade20k_thing_classes = ade20k_metadata.thing_classes
+        ade20k_stuff_classes = [x for x in ade20k_metadata.stuff_classes if x not in ade20k_thing_classes]
+        ade20k_thing_colors = ade20k_metadata.thing_colors
+        ade20k_stuff_colors = [x for x in ade20k_metadata.stuff_colors if x not in ade20k_thing_colors]
+
+        user_classes = []
+        user_colors = [random_color(rgb=True, maximum=1) for _ in range(len(user_classes))]
+
+        stuff_classes = coco_stuff_classes + ade20k_stuff_classes
+        stuff_colors = coco_stuff_colors + ade20k_stuff_colors
+        thing_classes = user_classes + coco_thing_classes + ade20k_thing_classes + lvis_classes
+        thing_colors = user_colors + coco_thing_colors + ade20k_thing_colors + lvis_colors
+
+        thing_dataset_id_to_contiguous_id = {x: x for x in range(len(thing_classes))}
+        DatasetCatalog.register(
+            "openvocab_dataset", lambda x: []
+        )
+        self.metadata = MetadataCatalog.get("openvocab_dataset").set(
+            stuff_classes=thing_classes+stuff_classes,
+            stuff_colors=thing_colors+stuff_colors,
+            thing_dataset_id_to_contiguous_id=thing_dataset_id_to_contiguous_id,
+        )
+        #print("self.metadata:", self.metadata)
         self.cpu_device = torch.device("cpu")
         self.instance_mode = instance_mode
 
@@ -35,6 +148,7 @@ class VisualizationDemo(object):
             self.predictor = AsyncPredictor(cfg, num_gpus=num_gpu)
         else:
             self.predictor = DefaultPredictor(cfg)
+        self.predictor.set_metadata(self.metadata)
 
     def run_on_image(self, image):
         """
@@ -49,10 +163,10 @@ class VisualizationDemo(object):
         predictions = self.predictor(image)
         # Convert image from OpenCV BGR format to Matplotlib RGB format.
         image = image[:, :, ::-1]
-        visualizer = Visualizer(image, self.metadata, instance_mode=self.instance_mode)
+        visualizer = OpenVocabVisualizer(image, self.metadata, instance_mode=self.instance_mode)
         if "panoptic_seg" in predictions:
             panoptic_seg, segments_info = predictions["panoptic_seg"]
-            vis_output = visualizer.draw_panoptic_seg_predictions(
+            vis_output = visualizer.draw_panoptic_seg(
                 panoptic_seg.to(self.cpu_device), segments_info
             )
         else:
@@ -73,59 +187,6 @@ class VisualizationDemo(object):
                 yield frame
             else:
                 break
-
-    def run_on_video(self, video):
-        """
-        Visualizes predictions on frames of the input video.
-        Args:
-            video (cv2.VideoCapture): a :class:`VideoCapture` object, whose source can be
-                either a webcam or a video file.
-        Yields:
-            ndarray: BGR visualizations of each video frame.
-        """
-        video_visualizer = VideoVisualizer(self.metadata, self.instance_mode)
-
-        def process_predictions(frame, predictions):
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            if "panoptic_seg" in predictions:
-                panoptic_seg, segments_info = predictions["panoptic_seg"]
-                vis_frame = video_visualizer.draw_panoptic_seg_predictions(
-                    frame, panoptic_seg.to(self.cpu_device), segments_info
-                )
-            elif "instances" in predictions:
-                predictions = predictions["instances"].to(self.cpu_device)
-                vis_frame = video_visualizer.draw_instance_predictions(frame, predictions)
-            elif "sem_seg" in predictions:
-                vis_frame = video_visualizer.draw_sem_seg(
-                    frame, predictions["sem_seg"].argmax(dim=0).to(self.cpu_device)
-                )
-
-            # Converts Matplotlib RGB format to OpenCV BGR format
-            vis_frame = cv2.cvtColor(vis_frame.get_image(), cv2.COLOR_RGB2BGR)
-            return vis_frame
-
-        frame_gen = self._frame_from_video(video)
-        if self.parallel:
-            buffer_size = self.predictor.default_buffer_size
-
-            frame_data = deque()
-
-            for cnt, frame in enumerate(frame_gen):
-                frame_data.append(frame)
-                self.predictor.put(frame)
-
-                if cnt >= buffer_size:
-                    frame = frame_data.popleft()
-                    predictions = self.predictor.get()
-                    yield process_predictions(frame, predictions)
-
-            while len(frame_data):
-                frame = frame_data.popleft()
-                predictions = self.predictor.get()
-                yield process_predictions(frame, predictions)
-        else:
-            for frame in frame_gen:
-                yield process_predictions(frame, self.predictor(frame))
 
 
 class AsyncPredictor:

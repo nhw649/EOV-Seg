@@ -24,9 +24,8 @@ from detectron2.data.detection_utils import read_image
 from detectron2.projects.deeplab import add_deeplab_config
 from detectron2.utils.logger import setup_logger
 
-from mask2former import add_maskformer2_config
+from eov_seg import add_eov_config
 from predictor import VisualizationDemo
-
 
 
 def create_cityscapes_label_colormap():
@@ -61,8 +60,6 @@ def label_to_color_image(label):
   colormap = create_cityscapes_label_colormap()
   return colormap[label]
 
-
-
 # constants
 WINDOW_NAME = "mask2former demo"
 
@@ -71,7 +68,7 @@ def setup_cfg(args):
     # load config from file and command-line arguments
     cfg = get_cfg()
     add_deeplab_config(cfg)
-    add_maskformer2_config(cfg)
+    add_eov_config(cfg)
     cfg.merge_from_file(args.config_file)
     cfg.merge_from_list(args.opts)
     cfg.freeze()
@@ -88,12 +85,6 @@ def get_parser():
     )
     parser.add_argument("--webcam", action="store_true", help="Take inputs from webcam.")
     parser.add_argument("--video-input", help="Path to video file.")
-    # parser.add_argument(
-    #     "--input",
-    #     nargs="+",
-    #     help="A list of space separated input images; "
-    #     "or a single glob pattern such as 'directory/*.jpg'",
-    # )
     parser.add_argument('--input', type=str)
     parser.add_argument(
         "--output",
@@ -133,7 +124,6 @@ def test_opencv_video_format(codec, file_ext):
         return False
 
 
-
 if __name__ == "__main__":
     mp.set_start_method("spawn", force=True)
     args = get_parser().parse_args()
@@ -146,22 +136,16 @@ if __name__ == "__main__":
     demo = VisualizationDemo(cfg)
 
     if args.input:
-        # if len(args.input) == 1:
-        #     args.input = glob.glob(os.path.expanduser(args.input[0]))
-        #     assert args.input, "The input path(s) was not found"
         img_pths = []
-        for img_dir in os.listdir(args.input):
-            for img_name in os.listdir(os.path.join(args.input, img_dir)):
-                if img_name.split('.')[-1] == 'png':
-                    img_pths.append(os.path.join(args.input, img_dir, img_name))
-        # for path in tqdm.tqdm(args.input, disable=not args.output):
+        for img_name in os.listdir(args.input):
+            img_pths.append(os.path.join(args.input, img_name))
         for path in tqdm.tqdm(img_pths):
             # use PIL, to be consistent with evaluation
             img = read_image(path, format="BGR")
             start_time = time.time()
             predictions, visualized_output = demo.run_on_image(img)
-            mask = predictions["sem_seg"].argmax(dim=0).cpu().detach().numpy()
-            seg_image = label_to_color_image(mask).astype(np.uint8)
+            # mask = predictions["sem_seg"].argmax(dim=0).cpu().detach().numpy()
+            # seg_image = label_to_color_image(mask).astype(np.uint8)
             # cv2.imshow('img', seg_image)
             # cv2.waitKey()
             # print(seg_image.shape)
@@ -177,14 +161,16 @@ if __name__ == "__main__":
             )
 
             if args.output:
+                if not os.path.exists(args.output):
+                    os.makedirs(args.output)
                 if os.path.isdir(args.output):
                     assert os.path.isdir(args.output), args.output
                     out_filename = os.path.join(args.output, os.path.basename(path))
                 else:
                     assert len(args.input) == 1, "Please specify a directory with args.output"
                     out_filename = args.output
-                # visualized_output.save(out_filename)
-                cv2.imwrite(out_filename, seg_image[:, :, ::-1])
+                visualized_output.save(out_filename)
+                # cv2.imwrite(out_filename, seg_image[:, :, ::-1])
             else:
                 cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
                 cv2.imshow(WINDOW_NAME, visualized_output.get_image()[:, :, ::-1])

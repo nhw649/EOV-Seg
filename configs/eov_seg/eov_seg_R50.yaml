@@ -1,4 +1,4 @@
-_BASE_: R50.yaml
+_BASE_: ../maskformer2_R50_bs16_90k.yaml
 DATASETS:
   TRAIN: ("openvocab_coco_2017_train_panoptic_with_sem_seg",)
   TEST: ("openvocab_ade20k_panoptic_val",)

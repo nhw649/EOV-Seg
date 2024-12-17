@@ -240,15 +240,6 @@ class Trainer(DefaultTrainer):
             #             print(f"Parameter name: {name}, size: {param.size()}, grad: {param.requires_grad}")
             #             break
 
-        neck_total_params = 0
-        head_total_params = 0
-        for n, p in model.named_parameters():
-            # print(n, p.requires_grad)
-            if "lite_aggr" in n:
-                neck_total_params += p.numel()
-            if "light_weight_decoder" in n:
-                head_total_params += p.numel()
-        print(f"neck_total_params: {neck_total_params}, head_total_params: {head_total_params}")
         return optimizer
 
     @classmethod
@@ -291,8 +282,14 @@ def main(args):
         trainable_params = sum(p.numel() for n, p in model.named_parameters() if 'vit_backbone' not in n and p.requires_grad)
         frozen_params = sum(p.numel() for n, p in model.named_parameters() if 'vit_backbone' not in n and not p.requires_grad)
         frozen_params_exclude_text = 0
+        neck_total_params = 0
+        head_total_params = 0
         for n, p in model.named_parameters():
-            if 'vit_backbone' not in n:
+            if "lite_aggr" in n:
+                neck_total_params += p.numel()
+            elif "light_weight_decoder" in n:
+                head_total_params += p.numel()
+            elif 'vit_backbone' not in n:
                 # print(n, p.requires_grad)
                 if p.requires_grad:
                     continue
@@ -308,8 +305,8 @@ def main(args):
         
         cnn_frozen_params = sum(p.numel() for n,p in model.named_parameters() if "cnn_backbone.clip_model.visual" in n)
 
-        print(f"cnn_frozen_params: {cnn_frozen_params}")
-        print(f"vit_frozen_params: {vit_frozen_params}")
+        print(f"cnn_frozen_params: {cnn_frozen_params}, vit_frozen_params: {vit_frozen_params}")
+        print(f"neck_total_params: {neck_total_params}, head_total_params: {head_total_params}")
         print(f"total_params: {(frozen_params_exclude_text + vit_frozen_params + trainable_params)}, trainable_params: {trainable_params}, frozen_params: {(frozen_params + vit_frozen_params)}, frozen_params_exclude_text: {(frozen_params_exclude_text + vit_frozen_params)}")
 
         DetectionCheckpointer(model, save_dir=cfg.OUTPUT_DIR).resume_or_load(
